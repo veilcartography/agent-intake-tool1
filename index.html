@@ -1,0 +1,1344 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Baseline Intake Workspace</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            zinc: {
+              850: '#202024',
+              950: '#09090b',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <!-- Custom UI Tweaks -->
+  <style>
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #09090b;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #27272a;
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #3f3f46;
+    }
+  </style>
+</head>
+<body class="bg-zinc-950 text-zinc-100 flex flex-col min-h-screen font-sans antialiased selection:bg-violet-500/30 selection:text-violet-200">
+
+  <!-- Live Toast Alert -->
+  <div id="toast" class="fixed bottom-6 right-6 z-50 hidden flex items-center space-x-2 px-4 py-3 rounded-lg shadow-xl border backdrop-blur-md transition-all duration-300">
+    <div class="w-2 h-2 rounded-full bg-current animate-pulse"></div>
+    <span id="toast-text" class="text-sm font-medium"></span>
+  </div>
+
+  <!-- Setup & API Key Modal -->
+  <div id="api-modal" class="fixed inset-0 z-50 hidden bg-zinc-950/85 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-zinc-900 border border-zinc-800 rounded-2xl max-w-lg w-full p-6 space-y-5 shadow-2xl">
+      <div class="flex items-center justify-between border-b border-zinc-800 pb-3">
+        <h3 class="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
+          <svg class="w-4 h-4 text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+          Gemini Secure Key API
+        </h3>
+        <button onclick="toggleApiModal(false)" class="text-zinc-500 hover:text-white text-lg">&times;</button>
+      </div>
+      
+      <div class="space-y-4">
+        <p class="text-xs text-zinc-400 leading-relaxed">
+          This workspace executes client-side AI analysis dynamically. To run premium direct integrations on this page, save your Gemini developer key below. It remains safely saved inside your browser's private storage.
+        </p>
+        
+        <div class="space-y-1.5">
+          <label class="text-[10px] uppercase font-bold tracking-wider text-zinc-500">Google Gemini API Key</label>
+          <input id="api-key-input" type="password" placeholder="AIzaSy..." class="w-full bg-zinc-950 border border-zinc-800 focus:border-violet-500 focus:ring-1 focus:ring-violet-500 text-sm px-3.5 py-2.5 rounded-xl text-zinc-200">
+          <p class="text-[10px] text-zinc-500">
+            Generate keys instantly for free at <a href="https://aistudio.google.com/" target="_blank" class="text-violet-400 underline hover:text-violet-300">Google AI Studio</a>.
+          </p>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-between pt-4 border-t border-zinc-800">
+        <button onclick="clearSavedApiKey()" class="text-xs text-rose-400 hover:text-rose-300 font-semibold">Clear Saved Key</button>
+        <div class="flex gap-2">
+          <button onclick="toggleApiModal(false)" class="px-3.5 py-2 bg-zinc-950 hover:bg-zinc-850 text-xs font-semibold rounded-xl border border-zinc-800 transition">Cancel</button>
+          <button onclick="saveApiKey()" class="px-4 py-2 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-750 hover:to-indigo-750 text-xs text-white font-bold rounded-xl transition">Apply Key</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- AI Clipboard / Prompt Fallback Modal -->
+  <div id="fallback-modal" class="fixed inset-0 z-50 hidden bg-zinc-950/85 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-zinc-900 border border-zinc-800 rounded-2xl max-w-2xl w-full p-6 space-y-5 shadow-2xl">
+      <div class="flex items-center justify-between border-b border-zinc-800 pb-3">
+        <div class="flex items-center gap-2">
+          <span class="h-2.5 w-2.5 rounded-full bg-violet-500 animate-pulse"></span>
+          <h3 class="text-xs font-bold text-white uppercase tracking-wider">Structured Fallback Assistant</h3>
+        </div>
+        <button onclick="toggleFallbackModal(false)" class="text-zinc-500 hover:text-white text-lg">&times;</button>
+      </div>
+
+      <p class="text-xs text-zinc-400 leading-relaxed">
+        No API Key is currently loaded. Use our streamlined fallback process: copy this dynamically populated prompt, run it inside any free chat utility (Gemini, ChatGPT, or Claude), and paste the result back below to populate the dashboard!
+      </p>
+
+      <div class="space-y-1.5">
+        <div class="flex justify-between items-center">
+          <span class="text-[10px] uppercase font-bold tracking-wider text-zinc-500">Structured AI Prompt</span>
+          <button onclick="copyFallbackPromptText()" class="text-xs text-violet-400 hover:text-violet-300 font-bold flex items-center gap-1.5 transition">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+            Copy Prompt Structure
+          </button>
+        </div>
+        <textarea id="fallback-prompt-textarea" readonly rows="7" class="w-full bg-zinc-950 border border-zinc-850 p-3 rounded-xl text-xs text-zinc-400 font-mono leading-relaxed focus:outline-none select-all"></textarea>
+      </div>
+
+      <div class="space-y-2 border-t border-zinc-800 pt-4">
+        <label class="text-[10px] uppercase font-bold tracking-wider text-zinc-500">Paste Response Back Below</label>
+        <textarea id="ai-response-pastebin" rows="3" placeholder="Paste response from ChatGPT / Gemini directly..." class="w-full bg-zinc-950 border border-zinc-850 p-3 rounded-xl text-xs text-zinc-200 placeholder-zinc-750 leading-relaxed focus:border-violet-500 focus:ring-1 focus:ring-violet-500"></textarea>
+      </div>
+
+      <div class="flex items-center justify-end gap-2">
+        <button onclick="toggleFallbackModal(false)" class="px-4 py-2 bg-zinc-950 hover:bg-zinc-850 text-xs font-semibold rounded-xl border border-zinc-800 transition">Close</button>
+        <button onclick="injectExternalPlaybook()" class="px-4 py-2 bg-gradient-to-r from-indigo-500 to-violet-600 hover:from-indigo-600 hover:to-violet-750 text-xs text-white font-bold rounded-xl transition">Parse response to Dashboard</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Primary Workspace Layout -->
+  <header class="border-b border-zinc-900 bg-zinc-950/80 backdrop-blur sticky top-0 z-30 px-6 py-4">
+    <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <div class="flex items-center space-x-3">
+        <div class="h-10 w-10 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-lg shadow-violet-500/10">
+          <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+        </div>
+        <div>
+          <h1 class="text-xl font-bold tracking-tight text-white flex items-center gap-2">
+            Baseline Intake Workspace
+            <span class="px-2 py-0.5 text-[10px] font-semibold tracking-wider uppercase bg-violet-500/10 text-violet-400 rounded-full border border-violet-500/20">
+              Fill Once
+            </span>
+          </h1>
+          <p class="text-xs text-zinc-400">Section 1: Setup current system parameters & goals</p>
+        </div>
+      </div>
+
+      <div class="flex items-center flex-wrap gap-2">
+        <button id="tab-form" onclick="switchTab('form')" class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 bg-zinc-850 text-white shadow-inner border border-zinc-700">
+          Intake Form
+        </button>
+        <button id="tab-blueprint" onclick="switchTab('blueprint')" class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900 flex items-center gap-1.5">
+          <svg class="w-3.5 h-3.5 text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          Strategy Blueprint
+        </button>
+        <button id="tab-history" onclick="switchTab('history')" class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900">
+          Local Archives (<span id="archive-count">0</span>)
+        </button>
+        
+        <!-- API Setup Config Trigger -->
+        <button onclick="toggleApiModal(true)" class="p-2 ml-2 bg-zinc-900 hover:bg-zinc-800 rounded-xl border border-zinc-800 transition" title="API Configuration Settings">
+          <svg class="w-4 h-4 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="flex-1 max-w-7xl w-full mx-auto px-6 py-8 grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+    
+    <!-- Left Column: Form Intake Section -->
+    <section id="form-container" class="lg:col-span-7 space-y-8">
+      <div class="bg-zinc-900/40 border border-zinc-900 rounded-2xl p-6 space-y-6 backdrop-blur-sm">
+        
+        <!-- Guidelines Card -->
+        <div class="p-4 bg-zinc-950/60 rounded-xl border border-zinc-800/60 flex gap-3">
+          <svg class="w-5 h-5 text-indigo-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          <div>
+            <h3 class="text-sm font-semibold text-zinc-200">Workspace Guidelines</h3>
+            <p class="text-xs text-zinc-400 mt-1 leading-relaxed font-normal">
+              Establish your baseline parameters below. This data will formulate a contextual system architecture tailored to your comfort and pacing. Save locally or run the live AI synthesis.
+            </p>
+          </div>
+        </div>
+
+        <div class="space-y-6">
+          
+          <!-- Field 1: Tech Stack -->
+          <div class="space-y-2">
+            <div class="flex items-center justify-between">
+              <label class="text-xs uppercase font-semibold tracking-wider text-zinc-400 flex items-center gap-1.5">
+                <svg class="w-3.5 h-3.5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+                Current Tech Stack
+              </label>
+              <span class="text-[10px] text-zinc-500">Text / Bullet List / Dictated</span>
+            </div>
+            <p class="text-xs text-zinc-400">
+              What tools or services do you interact with regularly? (e.g., Slack, Alexa, Outlook, Notion, Gmail)
+            </p>
+            
+            <div class="flex gap-2">
+              <div class="relative flex-1">
+                <input id="tech-input" type="text" placeholder="Type tool name and press Enter..." class="w-full bg-zinc-950 border border-zinc-800 focus:border-violet-500 focus:ring-1 focus:ring-violet-500 text-sm px-3 py-2 rounded-xl text-zinc-200 placeholder-zinc-600 transition duration-150">
+                <button id="tech-dictate-btn" onclick="toggleDictation('stack')" class="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-lg text-zinc-500 hover:text-zinc-300 hover:bg-zinc-850 transition">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/></svg>
+                </button>
+              </div>
+              <button onclick="addTechItem()" class="bg-zinc-850 hover:bg-zinc-800 border border-zinc-750 text-zinc-200 text-xs font-semibold px-4 py-2 rounded-xl transition">Add</button>
+            </div>
+            <div id="tech-tags-list" class="flex flex-wrap gap-1.5 pt-2"></div>
+
+            <!-- Dynamic Tool Suggest AI Feature -->
+            <div class="pt-2">
+              <button id="btn-suggest-tools" onclick="suggestMatchingTools()" class="flex items-center gap-1.5 px-3 py-1.5 bg-violet-950/25 hover:bg-violet-950/50 text-violet-300 hover:text-violet-200 text-xs font-semibold rounded-lg border border-violet-900/40 transition">
+                <span>✨ Suggest Matching Tools</span>
+              </button>
+              
+              <div id="smart-tool-recommendations" class="hidden mt-3 p-3 bg-zinc-950/50 rounded-xl border border-zinc-900 space-y-2">
+                <p class="text-[10px] uppercase font-bold text-violet-400 tracking-wider">✨ AI Suggested Additions</p>
+                <div id="smart-tool-list" class="flex flex-wrap gap-1.5 pt-1"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Field 2: Tech Comfort Level -->
+          <div class="space-y-3 pt-2">
+            <div class="flex items-center justify-between">
+              <label class="text-xs uppercase font-semibold tracking-wider text-zinc-400 flex items-center gap-1.5">
+                <svg class="w-3.5 h-3.5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                Tech Comfort Level
+              </label>
+              <span class="text-[10px] text-zinc-500">Select One</span>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3" id="comfort-container"></div>
+          </div>
+
+          <!-- Field 3: Interface Preference -->
+          <div class="space-y-3 pt-2">
+            <div class="flex items-center justify-between">
+              <label class="text-xs uppercase font-semibold tracking-wider text-zinc-400 flex items-center gap-1.5">
+                <svg class="w-3.5 h-3.5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>
+                Interface Preference
+              </label>
+              <span class="text-[10px] text-zinc-500">Multi-select</span>
+            </div>
+            <p class="text-xs text-zinc-400">Select your favored layout formats.</p>
+            <div class="flex flex-wrap gap-2" id="interface-container"></div>
+          </div>
+
+          <!-- Field 4: Learning Patience -->
+          <div class="space-y-3 pt-2">
+            <div class="flex items-center justify-between">
+              <label class="text-xs uppercase font-semibold tracking-wider text-zinc-400 flex items-center gap-1.5">
+                <svg class="w-3.5 h-3.5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+                Learning Patience
+              </label>
+              <span class="text-[10px] text-zinc-500">Select One</span>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3" id="patience-container"></div>
+          </div>
+
+          <!-- Field 5: Ideal Outcome -->
+          <div class="space-y-2 pt-2">
+            <div class="flex items-center justify-between">
+              <label class="text-xs uppercase font-semibold tracking-wider text-zinc-400 flex items-center gap-1.5">
+                <svg class="w-3.5 h-3.5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                Ideal Outcome
+              </label>
+              <span class="text-[10px] text-zinc-500">Long-form or Voice-dictated</span>
+            </div>
+            <p class="text-xs text-zinc-400">Describe what would make your life significantly easier. Be greedy. No limits.</p>
+            <div class="relative">
+              <textarea id="outcome-input" rows="3" placeholder="Describe your perfect state of automated efficiency..." class="w-full bg-zinc-950 border border-zinc-800 focus:border-violet-500 focus:ring-1 focus:ring-violet-500 text-sm px-3.5 py-3 rounded-xl text-zinc-200 placeholder-zinc-600 leading-relaxed resize-y"></textarea>
+              <div class="absolute right-3.5 bottom-3.5 flex items-center gap-2">
+                <!-- AI Outcome Refiner -->
+                <button id="btn-upgrade-outcome" onclick="upgradeOutcome()" class="bg-violet-950/40 hover:bg-violet-900/50 text-violet-300 py-1.5 px-3 rounded-xl text-[10px] tracking-wide font-bold flex items-center gap-1.5 border border-violet-900/50 transition">
+                  <span>✨ Upgrade Outcome</span>
+                </button>
+                <button id="outcome-dictate-btn" onclick="toggleDictation('outcome')" class="bg-zinc-900 hover:bg-zinc-800 text-zinc-400 py-1.5 px-3 rounded-xl text-[10px] tracking-wide font-bold flex items-center gap-1.5 border border-zinc-800 transition">
+                  <span>DICTATE</span>
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/></svg>
+                </button>
+              </div>
+            </div>
+            
+            <!-- Voice Waves Animation -->
+            <div id="audio-wave-container" class="hidden flex items-center justify-center gap-1 py-1.5 bg-rose-500/5 rounded-lg border border-rose-500/10">
+              <span class="text-[10px] text-rose-400/80 mr-2 font-mono">Continuous Dictation Streaming...</span>
+              <div class="h-3 w-0.5 bg-rose-500 animate-bounce rounded-full"></div>
+              <div class="h-5 w-0.5 bg-rose-400 animate-bounce rounded-full" style="animation-delay: 0.1s"></div>
+              <div class="h-2 w-0.5 bg-rose-500 animate-bounce rounded-full" style="animation-delay: 0.2s"></div>
+              <div class="h-6 w-0.5 bg-rose-400 animate-bounce rounded-full" style="animation-delay: 0.3s"></div>
+            </div>
+          </div>
+
+          <!-- Field 6: Time Horizon -->
+          <div class="space-y-3 pt-2">
+            <div class="flex items-center justify-between">
+              <label class="text-xs uppercase font-semibold tracking-wider text-zinc-400 flex items-center gap-1.5">
+                <svg class="w-3.5 h-3.5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                Time Horizon
+              </label>
+              <span class="text-[10px] text-zinc-500">Select One</span>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3" id="horizon-container"></div>
+          </div>
+
+        </div>
+
+        <!-- Submit & Secondary utilities -->
+        <div class="pt-6 border-t border-zinc-900 flex flex-wrap gap-3 items-center justify-between">
+          <div class="flex items-center gap-2">
+            <button onclick="clearForm()" class="px-4 py-2 bg-zinc-950 hover:bg-zinc-900 border border-zinc-850 hover:border-zinc-800 text-xs font-semibold text-zinc-400 hover:text-rose-400 rounded-xl transition duration-150">
+              Clear All
+            </button>
+            <button onclick="saveProfileLocally()" class="px-4 py-2 bg-zinc-950 hover:bg-zinc-900 border border-zinc-850 hover:border-zinc-800 text-xs font-semibold text-zinc-300 hover:text-white rounded-xl transition duration-150">
+              Save Draft
+            </button>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <div class="inline-flex rounded-xl overflow-hidden border border-zinc-800">
+              <button onclick="copyMarkdown()" class="bg-zinc-950 hover:bg-zinc-900 text-zinc-400 hover:text-zinc-200 text-xs font-medium px-3.5 py-2 transition" title="Copy Markdown Setup">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m-5 10h6m-6 4h6m2.5-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              </button>
+              <button onclick="downloadJSON()" class="bg-zinc-950 hover:bg-zinc-900 text-zinc-400 hover:text-zinc-200 text-xs font-medium px-3.5 py-2 border-l border-zinc-900 transition" title="Export JSON File">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+              </button>
+            </div>
+
+            <button onclick="generatePlaybook()" class="bg-gradient-to-r from-indigo-500 via-purple-500 to-violet-600 hover:from-indigo-600 hover:to-violet-700 text-white text-xs font-bold px-5 py-2.5 rounded-xl transition flex items-center gap-2 shadow-lg shadow-indigo-500/20">
+              <svg class="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+              Generate Playbook
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- Right Column: Interactive Blueprint & Archives -->
+    <section id="sidebar-container" class="lg:col-span-5 space-y-8">
+      
+      <!-- Strategy Blueprint Render Frame -->
+      <div id="blueprint-panel" class="bg-zinc-900/40 border border-zinc-900 rounded-2xl p-6 space-y-6 backdrop-blur-sm flex flex-col justify-between min-h-[500px]">
+        <div>
+          <div class="flex items-center justify-between pb-4 border-b border-zinc-900">
+            <div class="flex items-center gap-2">
+              <svg class="w-4 h-4 text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+              <h2 class="text-xs uppercase font-extrabold tracking-wider text-white">Strategy Blueprint</h2>
+            </div>
+            <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-violet-950/50 text-violet-300 border border-violet-500/20 uppercase tracking-widest">
+              AI Guided Synthesis
+            </span>
+          </div>
+
+          <!-- Empty State & Loading View -->
+          <div id="blueprint-content" class="py-12 flex flex-col items-center justify-center text-center space-y-4">
+            <div class="h-12 w-12 rounded-xl bg-zinc-950 border border-zinc-850 flex items-center justify-center text-zinc-500 animate-pulse">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+            </div>
+            <div class="space-y-1">
+              <h4 class="text-sm font-semibold text-zinc-300">Strategy Matrix Empty</h4>
+              <p class="text-xs text-zinc-500 max-w-xs leading-relaxed font-normal">
+                Configure your current technology and desired outcomes, then click 'Generate Playbook' to trigger the AI analysis instantly.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Conversational Strategist Chat Panel -->
+        <div id="blueprint-chat-section" class="hidden border-t border-zinc-900/80 pt-4 mt-4 space-y-3">
+          <p class="text-[10px] font-bold text-violet-400 uppercase tracking-wider">✨ Adapt Playbook (Follow-up Strategist)</p>
+          <div id="chat-messages" class="space-y-2 max-h-40 overflow-y-auto p-2 bg-zinc-950/60 rounded-xl border border-zinc-900 text-xs">
+            <div class="text-zinc-400 italic">No alterations made yet. Ask below to modify or iterate your timeline!</div>
+          </div>
+          <div class="flex gap-2">
+            <input id="chat-input" type="text" placeholder="E.g., Can we make step 3 simpler? / I don't use Outlook..." class="w-full bg-zinc-950 border border-zinc-800 text-xs px-3 py-2 rounded-xl text-zinc-250 placeholder-zinc-600 focus:border-violet-500 focus:ring-1 focus:ring-violet-500">
+            <button onclick="sendFollowUpChat()" class="bg-violet-950 hover:bg-violet-900 text-violet-200 hover:text-white px-3.5 py-1.5 rounded-xl border border-violet-850 text-xs font-semibold transition">
+              Adapt
+            </button>
+          </div>
+        </div>
+
+        <div id="blueprint-footer" class="hidden pt-4 border-t border-zinc-900 flex items-center justify-between">
+          <span class="text-[10px] text-zinc-500">Ready to copy or integrate into notes</span>
+          <button onclick="copyStrategyText()" class="px-3 py-1.5 bg-zinc-950 hover:bg-zinc-900 border border-zinc-850 text-xs font-semibold text-zinc-300 flex items-center gap-1.5 transition">
+            <svg class="w-3.5 h-3.5 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+            Copy Strategy Markdown
+          </button>
+        </div>
+      </div>
+
+      <!-- Local Archives -->
+      <div id="history-panel" class="hidden bg-zinc-900/40 border border-zinc-900 rounded-2xl p-6 space-y-4 backdrop-blur-sm">
+        <div class="flex items-center justify-between pb-3 border-b border-zinc-900">
+          <div class="flex items-center gap-2">
+            <svg class="w-4 h-4 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+            <h2 class="text-xs uppercase font-extrabold tracking-wider text-white">Archived Playbooks</h2>
+          </div>
+        </div>
+        <div id="archives-list" class="space-y-3"></div>
+      </div>
+
+      <!-- Metadata State Widgets -->
+      <div class="bg-zinc-900/20 border border-zinc-900/60 rounded-2xl p-6 space-y-4">
+        <h3 class="text-[10px] uppercase font-extrabold tracking-widest text-zinc-500">Workspace Status</h3>
+        <div class="grid grid-cols-2 gap-4">
+          <div class="bg-zinc-950/40 p-3.5 rounded-xl border border-zinc-900">
+            <span class="block text-[10px] text-zinc-600 font-semibold uppercase">Active Stack</span>
+            <span id="meta-stack-count" class="text-lg font-bold text-zinc-200 mt-1 block">4</span>
+            <span class="text-[10px] text-zinc-500">Configured utilities</span>
+          </div>
+          <div class="bg-zinc-950/40 p-3.5 rounded-xl border border-zinc-900">
+            <span class="block text-[10px] text-zinc-600 font-semibold uppercase">Dictation Service</span>
+            <span id="meta-dictation-status" class="text-xs font-bold text-zinc-200 mt-1 block flex items-center gap-1">
+              <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Available
+            </span>
+            <span class="text-[10px] text-zinc-500">Voice engine online</span>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+  </main>
+
+  <footer class="mt-auto border-t border-zinc-900 py-6 text-center text-[10px] text-zinc-500">
+    <p>© 2026 Baseline Systems Design Co. — Direct Browser Interactive Workspace Frame.</p>
+  </footer>
+
+  <!-- Web API Logic -->
+  <script>
+    // System Data State
+    let techStack = ['Gmail', 'Google Calendar', 'Slack', 'WhatsApp'];
+    let comfortLevel = 'Hands-on learner';
+    let interfacePrefs = ['Text input', 'Web interface'];
+    let learningPatience = 'Short tutorial OK';
+    let idealOutcome = 'Save 4 hours a week on repetitive emails and coordinate schedules effortlessly.';
+    let timeHorizon = 'Full week';
+    
+    let isRecording = false;
+    let recordingTarget = null;
+    let recognition = null;
+    let activeBlueprint = '';
+    let savedProfiles = [];
+    let chatHistory = [];
+
+    // Option Definitions
+    const COMFORT_OPTIONS = [
+      { value: 'Voice-first', label: '🎙️ Voice-first', desc: 'Prefer speaking, dictate messages, use voice assistants.' },
+      { value: 'Text-comfortable', label: '⌨️ Text-comfortable', desc: 'Love typing, keyboard shortcuts, clean terminal/text layouts.' },
+      { value: 'Hands-on learner', label: '🛠️ Hands-on learner', desc: 'Prefer interactive clicking, testing layouts, learning by doing.' },
+      { value: 'Skeptical', label: '🔍 Skeptical', desc: 'Want direct proof of utility, minimal hype, highly robust features.' }
+    ];
+
+    const INTERFACE_OPTIONS = [
+      { value: 'Voice/dictation', label: 'Voice / Dictation' },
+      { value: 'Text input', label: 'Text Input' },
+      { value: 'Email', label: 'Email Integrations' },
+      { value: 'Web interface', label: 'Web Dashboard' },
+      { value: 'Simple/minimal', label: 'Minimal / Clean UI' }
+    ];
+
+    const PATIENCE_OPTIONS = [
+      { value: 'Just try it, no training', label: '🚀 Dive In', desc: 'No tutorials, immediate trial-and-error.' },
+      { value: 'Short tutorial OK', label: '📖 Quick Guide', desc: 'A 2-minute walkthrough is great.' },
+      { value: 'I want to understand first', label: '🧠 Deep Dive', desc: 'Give me the mental model and guides first.' }
+    ];
+
+    const TIME_HORIZONS = [
+      { value: '3-5 days', label: '⚡ Sprint (3-5 days)', desc: 'Quick setup, immediate payoff.' },
+      { value: 'Full week', label: '📅 Standard (1 week)', desc: 'Balanced onboarding.' },
+      { value: 'Ongoing', label: '🌱 Adaptive (Ongoing)', desc: 'Continuous steady refinement.' }
+    ];
+
+    // On-Load Framework Setup
+    window.onload = function() {
+      // Setup browser speech if available
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (SpeechRecognition) {
+        recognition = new SpeechRecognition();
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        recognition.lang = 'en-US';
+
+        recognition.onresult = (event) => {
+          let interimTranscript = '';
+          let finalTranscript = '';
+          for (let i = event.resultIndex; i < event.results.length; ++i) {
+            if (event.results[i].isFinal) {
+              finalTranscript += event.results[i][0].transcript;
+            } else {
+              interimTranscript += event.results[i][0].transcript;
+            }
+          }
+          if (recordingTarget === 'outcome') {
+            document.getElementById('outcome-input').value += (finalTranscript || interimTranscript);
+            idealOutcome = document.getElementById('outcome-input').value;
+          } else if (recordingTarget === 'stack') {
+            document.getElementById('tech-input').value += (finalTranscript || interimTranscript);
+          }
+        };
+
+        recognition.onerror = () => {
+          showToast('Speech Dictation connection interrupted.', 'rose-950/90 border-rose-500/30 text-rose-200');
+          stopRecording();
+        };
+
+        recognition.onend = () => {
+          stopRecording();
+        };
+      } else {
+        document.getElementById('meta-dictation-status').innerHTML = `<span class="w-2 h-2 rounded-full bg-rose-500"></span> Unavailable`;
+        document.getElementById('tech-dictate-btn').classList.add('hidden');
+        document.getElementById('outcome-dictate-btn').classList.add('hidden');
+      }
+
+      // Check LocalStorage API keys
+      const savedKey = localStorage.getItem('baseline_gemini_api_key');
+      if (savedKey) {
+        document.getElementById('api-key-input').value = savedKey;
+      }
+
+      // Fetch Saved Profiles
+      const stored = localStorage.getItem('baseline_profiles');
+      if (stored) {
+        try {
+          savedProfiles = JSON.parse(stored);
+        } catch (e) { console.error(e); }
+      }
+
+      // Populate Elements
+      renderFormFields();
+      renderTechTags();
+      updateArchivesUI();
+      document.getElementById('outcome-input').value = idealOutcome;
+    };
+
+    // Modal Control Logic
+    function toggleApiModal(isOpen) {
+      const modal = document.getElementById('api-modal');
+      if (isOpen) {
+        modal.classList.remove('hidden');
+        const savedKey = localStorage.getItem('baseline_gemini_api_key');
+        if (savedKey) {
+          document.getElementById('api-key-input').value = savedKey;
+        }
+      } else {
+        modal.classList.add('hidden');
+      }
+    }
+
+    function saveApiKey() {
+      const keyVal = document.getElementById('api-key-input').value.trim();
+      if (keyVal) {
+        localStorage.setItem('baseline_gemini_api_key', keyVal);
+        showToast('Gemini Developer Key saved securely in storage!', 'bg-emerald-950 border-emerald-500/30 text-emerald-200');
+      } else {
+        localStorage.removeItem('baseline_gemini_api_key');
+      }
+      toggleApiModal(false);
+    }
+
+    function clearSavedApiKey() {
+      localStorage.removeItem('baseline_gemini_api_key');
+      document.getElementById('api-key-input').value = '';
+      showToast('Stored API key removed successfully.', 'bg-zinc-900 border-zinc-850 text-zinc-300');
+      toggleApiModal(false);
+    }
+
+    // Modal Fallback Controllers
+    function toggleFallbackModal(isOpen, promptType = 'playbook') {
+      const modal = document.getElementById('fallback-modal');
+      if (isOpen) {
+        modal.classList.remove('hidden');
+        const promptText = generateFallbackPromptText(promptType);
+        document.getElementById('fallback-prompt-textarea').value = promptText;
+        document.getElementById('ai-response-pastebin').value = '';
+      } else {
+        modal.classList.add('hidden');
+      }
+    }
+
+    function generateFallbackPromptText(type) {
+      const stack = techStack.join(', ') || 'No tech tools provided yet.';
+      const outcomeVal = document.getElementById('outcome-input').value || 'No specified outcome';
+      
+      if (type === 'suggest_tools') {
+        return `Analyze my system preferences and output exactly 5 smart, modern tool suggestions that fit my lifestyle.
+---
+TECH COMFORT: ${comfortLevel}
+INTERFACE PREFERENCE: ${interfacePrefs.join(', ') || 'Any'}
+IDEAL OUTCOME: "${outcomeVal}"
+EXCLUDE ALREADY KNOWN TOOLS: [${stack}]
+---
+
+Please reply in valid, raw JSON format matching this schema strictly without any conversational markdown wrapper (do not wrap inside \`\`\`json block, just return raw JSON):
+{
+  "recommendations": [
+    {
+      "name": "Tool Name",
+      "reason": "Clear explanation under 15 words on why it fits my specific comfort/outcome needs."
+    }
+  ]
+}`;
+      }
+
+      if (type === 'upgrade_outcome') {
+        return `Enhance and polish my simple workspace outcome goals into an executive productivity objective. Keep it highly realistic, professional, and under 30 words.
+---
+RAW STATEMENT: "${outcomeVal}"
+Comfort Level: ${comfortLevel}
+---
+
+Provide ONLY the final enhanced statement directly. No preamble or explanations.`;
+      }
+
+      // Default Playbook Prompt
+      return `Act as an elite productivity strategist and human-centric systems designer. Analyze my baseline dashboard parameters and generate a highly personalized "Tech Strategy & Optimization Blueprint" playbook.
+
+---
+CLIENT BASES:
+- Current Tech Stack: ${stack}
+- Tech Comfort Level: ${comfortLevel}
+- Interface Preferences: ${interfacePrefs.join(', ') || 'Any preference'}
+- Learning Patience: ${learningPatience}
+- Ideal Outcome Goal: "${outcomeVal}"
+- Action Time Horizon: Accomplish within ${timeHorizon}
+---
+
+Format your response in structured sections using clean Markdown:
+# 🚀 EXECUTIVE SUMMARY PROFILE
+Analyze my technology habits, strengths, and friction points. Give me a creative tech-user archetype name.
+
+## 🔧 CURRENT STACK OPTIMIZATION
+Analyze [${stack}] and suggest 1-2 integrations or configurations to make current tools work 10x better together.
+
+## 🌟 FUTURE-PROOF RECOMMENDATIONS
+Suggest 2-3 innovative AI-driven tools matching Interface Preferences & Comfort levels.
+
+## 📅 STEP-BY-STEP TIMELINE (${timeHorizon})
+Provide a daily/weekly adoption playbook structured around my Learning Patience (${learningPatience}) to minimize onboarding friction.
+
+## ⚡ QUICK-WIN EXPERIMENTS
+Provide 2-3 immediate workflow tasks I can do in under 15 minutes to feel progress today.`;
+    }
+
+    function copyFallbackPromptText() {
+      const textarea = document.getElementById('fallback-prompt-textarea');
+      textarea.select();
+      document.execCommand('copy');
+      showToast('Structured prompt template copied to clipboard! Paste this into Gemini or ChatGPT.', 'bg-indigo-950 border-indigo-500/30 text-indigo-200');
+    }
+
+    function injectExternalPlaybook() {
+      const responsePaste = document.getElementById('ai-response-pastebin').value.trim();
+      if (!responsePaste) {
+        showToast('Please paste the generated AI response into the pastebin first!', 'bg-rose-950 border-rose-500/40 text-rose-300');
+        return;
+      }
+
+      try {
+        const parsed = JSON.parse(responsePaste);
+        if (parsed.recommendations) {
+          const recList = document.getElementById('smart-tool-list');
+          document.getElementById('smart-tool-recommendations').classList.remove('hidden');
+          recList.innerHTML = parsed.recommendations.map(tool => `
+            <button onclick="addSuggestedTool('${tool.name.replace(/'/g, "\\'")}')" class="group text-left p-2.5 bg-zinc-900/80 hover:bg-violet-950/20 border border-zinc-800 hover:border-violet-500/40 rounded-xl transition flex flex-col gap-1 w-full md:w-[48%]">
+              <span class="text-xs font-bold text-zinc-200 group-hover:text-violet-300 flex items-center justify-between w-full">
+                <span>✨ ${tool.name}</span>
+                <span class="text-[10px] text-zinc-500 font-semibold group-hover:text-violet-400 bg-zinc-950 px-2 py-0.5 rounded-md border border-zinc-850">+ Add</span>
+              </span>
+              <span class="text-[10px] text-zinc-400 leading-normal">${tool.reason}</span>
+            </button>
+          `).join('');
+          showToast('AI Tool Suggestions applied successfully!');
+          toggleFallbackModal(false);
+          return;
+        }
+      } catch (e) {
+        // Continue processing as standard markdown output
+      }
+
+      if (responsePaste.length < 30) {
+        document.getElementById('outcome-input').value = responsePaste.replace(/"/g, '');
+        idealOutcome = responsePaste.replace(/"/g, '');
+        showToast('Upgraded Outcome statement applied!');
+        toggleFallbackModal(false);
+        return;
+      }
+
+      activeBlueprint = responsePaste;
+      const content = document.getElementById('blueprint-content');
+      content.innerHTML = `
+        <div class="py-2 text-left space-y-4 max-h-[600px] overflow-y-auto pr-1">
+          <div class="text-xs text-zinc-300 leading-relaxed space-y-3">
+            ${markdownToHTML(responsePaste)}
+          </div>
+        </div>
+      `;
+      document.getElementById('blueprint-footer').classList.remove('hidden');
+      document.getElementById('blueprint-chat-section').classList.remove('hidden');
+      showToast('Client Playbook compiled successfully inside dashboard!');
+      toggleFallbackModal(false);
+    }
+
+    // Interactive form elements mapping
+    function renderFormFields() {
+      const comfortContainer = document.getElementById('comfort-container');
+      comfortContainer.innerHTML = COMFORT_OPTIONS.map(opt => `
+        <div onclick="selectComfort('${opt.value}')" id="comfort-card-${opt.value}" class="cursor-pointer p-3.5 rounded-xl border text-left transition duration-200 ${
+          comfortLevel === opt.value ? 'bg-violet-950/20 border-violet-500/55 shadow-md shadow-violet-500/5' : 'bg-zinc-950/50 border-zinc-850 hover:border-zinc-800'
+        }">
+          <div class="flex items-center justify-between">
+            <span class="text-sm font-semibold text-zinc-100">${opt.label}</span>
+            <span class="comfort-check w-4 h-4 rounded-full bg-violet-500 items-center justify-center text-white text-[10px] font-bold ${comfortLevel === opt.value ? 'flex' : 'hidden'}">✓</span>
+          </div>
+          <p class="text-xs text-zinc-400 mt-1.5 leading-relaxed font-normal">${opt.desc}</p>
+        </div>
+      `).join('');
+
+      const interfaceContainer = document.getElementById('interface-container');
+      interfaceContainer.innerHTML = INTERFACE_OPTIONS.map(opt => {
+        const selected = interfacePrefs.includes(opt.value);
+        return `
+          <button onclick="toggleInterfacePref('${opt.value}')" id="interface-btn-${opt.value}" class="flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-medium border transition ${
+            selected ? 'bg-violet-900/10 border-violet-500/50 text-violet-300 shadow-sm' : 'bg-zinc-950/50 border-zinc-850 text-zinc-400 hover:text-zinc-200 hover:border-zinc-800'
+          }">
+            ${opt.value}
+          </button>
+        `;
+      }).join('');
+
+      const patienceContainer = document.getElementById('patience-container');
+      patienceContainer.innerHTML = PATIENCE_OPTIONS.map(opt => `
+        <button onclick="selectPatience('${opt.value}')" id="patience-card-${opt.value}" class="p-3.5 rounded-xl border text-left flex flex-col justify-between h-28 transition duration-200 w-full ${
+          learningPatience === opt.value ? 'bg-violet-950/20 border-violet-500/55 shadow-md' : 'bg-zinc-950/50 border-zinc-850 hover:border-zinc-800'
+        }">
+          <div class="flex items-center justify-between w-full">
+            <span class="text-xs font-bold text-zinc-200">${opt.label}</span>
+            <span class="patience-check w-4 h-4 rounded-full bg-violet-500 items-center justify-center text-white text-[10px] font-bold ${learningPatience === opt.value ? 'flex' : 'hidden'}">✓</span>
+          </div>
+          <p class="text-[11px] text-zinc-400 leading-normal mt-2 font-normal">${opt.desc}</p>
+        </button>
+      `).join('');
+
+      const horizonContainer = document.getElementById('horizon-container');
+      horizonContainer.innerHTML = TIME_HORIZONS.map(opt => `
+        <button onclick="selectHorizon('${opt.value}')" id="horizon-card-${opt.value}" class="p-3.5 rounded-xl border text-left flex flex-col justify-between h-24 transition duration-200 w-full ${
+          timeHorizon === opt.value ? 'bg-violet-950/20 border-violet-500/55 shadow-md' : 'bg-zinc-950/50 border-zinc-850 hover:border-zinc-800'
+        }">
+          <div class="flex items-center justify-between w-full">
+            <span class="text-xs font-bold text-zinc-200">${opt.label}</span>
+            <span class="horizon-check w-4 h-4 rounded-full bg-violet-500 items-center justify-center text-white text-[10px] font-bold ${timeHorizon === opt.value ? 'flex' : 'hidden'}">✓</span>
+          </div>
+          <p class="text-[11px] text-zinc-400 leading-normal mt-2 font-normal">${opt.desc}</p>
+        </button>
+      `).join('');
+    }
+
+    function selectComfort(val) {
+      comfortLevel = val;
+      renderFormFields();
+    }
+
+    function toggleInterfacePref(val) {
+      if (interfacePrefs.includes(val)) {
+        interfacePrefs = interfacePrefs.filter(p => p !== val);
+      } else {
+        interfacePrefs.push(val);
+      }
+      renderFormFields();
+    }
+
+    function selectPatience(val) {
+      learningPatience = val;
+      renderFormFields();
+    }
+
+    function selectHorizon(val) {
+      timeHorizon = val;
+      renderFormFields();
+    }
+
+    // Render Tech Tags list
+    function renderTechTags() {
+      const tagList = document.getElementById('tech-tags-list');
+      document.getElementById('meta-stack-count').innerText = techStack.length;
+      if (techStack.length === 0) {
+        tagList.innerHTML = `<span class="text-xs text-zinc-600 italic py-1">No items added to stack. Enter above to start.</span>`;
+        return;
+      }
+      tagList.innerHTML = techStack.map(item => `
+        <span class="inline-flex items-center gap-1 px-2.5 py-1 bg-zinc-950 border border-zinc-800 rounded-lg text-xs text-zinc-300 transition duration-150 hover:border-zinc-700">
+          ${item}
+          <button onclick="removeTechItem('${item}')" class="text-zinc-500 hover:text-rose-400 transition ml-0.5">&times;</button>
+        </span>
+      `).join('');
+    }
+
+    function addTechItem() {
+      const input = document.getElementById('tech-input');
+      const val = input.value.trim();
+      if (val) {
+        const items = val.split(',').map(i => i.trim()).filter(i => i && !techStack.includes(i));
+        techStack.push(...items);
+        input.value = '';
+        renderTechTags();
+        showToast(`Added ${items.length} tool(s) to tech stack`);
+      }
+    }
+
+    document.getElementById('tech-input').addEventListener('keypress', function (e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        addTechItem();
+      }
+    });
+
+    function removeTechItem(val) {
+      techStack = techStack.filter(item => item !== val);
+      renderTechTags();
+    }
+
+    // Voice dictation controllers
+    function toggleDictation(target) {
+      if (!recognition) return;
+
+      if (isRecording && recordingTarget === target) {
+        recognition.stop();
+        stopRecording();
+      } else {
+        if (isRecording) {
+          recognition.stop();
+        }
+        recordingTarget = target;
+        isRecording = true;
+        
+        if (target === 'outcome') {
+          document.getElementById('audio-wave-container').classList.remove('hidden');
+        }
+        
+        const btn = document.getElementById(target === 'stack' ? 'tech-dictate-btn' : 'outcome-dictate-btn');
+        btn.classList.add('bg-rose-500/20', 'text-rose-400', 'animate-pulse');
+        
+        recognition.start();
+        showToast(`Listening for ${target === 'stack' ? 'tools' : 'outcome'}...`, 'bg-indigo-950/90 border-indigo-500/30 text-indigo-200');
+      }
+    }
+
+    function stopRecording() {
+      isRecording = false;
+      recordingTarget = null;
+      document.getElementById('audio-wave-container').classList.add('hidden');
+      
+      const b1 = document.getElementById('tech-dictate-btn');
+      b1.classList.remove('bg-rose-500/20', 'text-rose-400', 'animate-pulse');
+      
+      const b2 = document.getElementById('outcome-dictate-btn');
+      b2.classList.remove('bg-rose-500/20', 'text-rose-400', 'animate-pulse');
+    }
+
+    // Archive Draft Managers
+    function clearForm() {
+      techStack = [];
+      comfortLevel = 'Hands-on learner';
+      interfacePrefs = [];
+      learningPatience = 'Short tutorial OK';
+      idealOutcome = '';
+      timeHorizon = 'Full week';
+      
+      document.getElementById('outcome-input').value = '';
+      renderFormFields();
+      renderTechTags();
+      showToast('Intake parameters cleared.', 'bg-zinc-900 border-zinc-800 text-zinc-300');
+    }
+
+    function saveProfileLocally() {
+      const payload = getPayload();
+      savedProfiles.unshift(payload);
+      if (savedProfiles.length > 10) savedProfiles.pop();
+      localStorage.setItem('baseline_profiles', JSON.stringify(savedProfiles));
+      updateArchivesUI();
+      showToast('Workspace draft successfully archived!');
+    }
+
+    function updateArchivesUI() {
+      const container = document.getElementById('archives-list');
+      document.getElementById('archive-count').innerText = savedProfiles.length;
+      
+      if (savedProfiles.length === 0) {
+        container.innerHTML = `<p class="text-xs text-zinc-500 text-center py-6">No archive profiles found.</p>`;
+        return;
+      }
+
+      container.innerHTML = savedProfiles.map((prof, idx) => `
+        <div class="p-4 bg-zinc-950/60 border border-zinc-850 rounded-xl flex items-center justify-between">
+          <div>
+            <p class="text-[10px] text-zinc-500">${new Date(prof.timestamp).toLocaleDateString()}</p>
+            <h4 class="text-xs font-bold text-zinc-200">${prof.comfortLevel} Playbook</h4>
+            <span class="text-[10px] text-zinc-400 block truncate max-w-[180px]">${prof.techStack.join(', ')}</span>
+          </div>
+          <button onclick="loadProfileArchive(${idx})" class="p-1 hover:bg-zinc-800 rounded text-zinc-400 hover:text-white transition">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+          </button>
+        </div>
+      `).join('');
+    }
+
+    function loadProfileArchive(idx) {
+      const prof = savedProfiles[idx];
+      techStack = prof.techStack || [];
+      comfortLevel = prof.comfortLevel || 'Hands-on learner';
+      interfacePrefs = prof.interfacePrefs || [];
+      learningPatience = prof.learningPatience || 'Short tutorial OK';
+      idealOutcome = prof.idealOutcome || '';
+      timeHorizon = prof.timeHorizon || 'Full week';
+
+      document.getElementById('outcome-input').value = idealOutcome;
+      renderFormFields();
+      renderTechTags();
+      switchTab('form');
+      showToast('Archive configuration loaded into active workspace.');
+    }
+
+    function copyMarkdown() {
+      const text = `# Baseline Intake Profile\nGenerated on: ${new Date().toLocaleDateString()}\n\n* **Current Tech Stack:** ${techStack.join(', ') || 'None'}\n* **Tech Comfort Level:** ${comfortLevel}\n* **Interface Preferences:** ${interfacePrefs.join(', ') || 'None'}\n* **Learning Patience:** ${learningPatience}\n* **Ideal Outcome:** ${document.getElementById('outcome-input').value || 'None'}\n* **Time Horizon:** ${timeHorizon}`;
+      
+      const el = document.createElement('textarea');
+      el.value = text;
+      document.body.appendChild(el);
+      el.select();
+      document.execCommand('copy');
+      document.body.removeChild(el);
+      showToast('Markdown parameters copied to clipboard!');
+    }
+
+    function downloadJSON() {
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(getPayload(), null, 2));
+      const downloadAnchor = document.createElement('a');
+      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute("download", "baseline_intake_profile.json");
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+      showToast("JSON payload file downloaded!");
+    }
+
+    function showToast(msg, bgClass = 'bg-emerald-950/90 border-emerald-500/30 text-emerald-200') {
+      const t = document.getElementById('toast');
+      const txt = document.getElementById('toast-text');
+      t.className = `fixed bottom-6 right-6 z-50 flex items-center space-x-2 px-4 py-3 rounded-lg shadow-xl border backdrop-blur-md transition-all duration-300 ${bgClass}`;
+      txt.innerText = msg;
+      t.classList.remove('hidden');
+      setTimeout(() => t.classList.add('hidden'), 4000);
+    }
+
+    function switchTab(tab) {
+      document.getElementById('tab-form').className = tab === 'form' ? 'px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-zinc-850 text-white border border-zinc-700' : 'px-3.5 py-1.5 rounded-lg text-xs font-semibold text-zinc-400 hover:text-zinc-200';
+      document.getElementById('tab-blueprint').className = tab === 'blueprint' ? 'px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-zinc-850 text-white border border-zinc-700 flex items-center gap-1.5' : 'px-3.5 py-1.5 rounded-lg text-xs font-semibold text-zinc-400 hover:text-zinc-200 flex items-center gap-1.5';
+      document.getElementById('tab-history').className = tab === 'history' ? 'px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-zinc-850 text-white border border-zinc-700' : 'px-3.5 py-1.5 rounded-lg text-xs font-semibold text-zinc-400 hover:text-zinc-200';
+
+      document.getElementById('form-container').className = tab === 'form' ? 'lg:col-span-7 space-y-8' : 'hidden lg:block lg:col-span-7 space-y-8';
+      document.getElementById('blueprint-panel').className = tab === 'blueprint' ? 'bg-zinc-900/40 border border-zinc-900 rounded-2xl p-6 space-y-6 backdrop-blur-sm flex flex-col justify-between min-h-[500px]' : 'hidden lg:flex bg-zinc-900/40 border border-zinc-900 rounded-2xl p-6 space-y-6 backdrop-blur-sm flex flex-col justify-between min-h-[500px]';
+      document.getElementById('history-panel').className = tab === 'history' ? 'bg-zinc-900/40 border border-zinc-900 rounded-2xl p-6 space-y-4 backdrop-blur-sm' : 'hidden lg:block bg-zinc-900/40 border border-zinc-900 rounded-2xl p-6 space-y-4 backdrop-blur-sm';
+    }
+
+    function markdownToHTML(text) {
+      if (!text) return '';
+      return text
+        .replace(/### (.*)/g, '<h4 class="text-xs font-semibold text-violet-300 mt-5 mb-2 uppercase tracking-wide">$1</h4>')
+        .replace(/## (.*)/g, '<h3 class="text-sm font-bold text-violet-250 mt-6 mb-3 pb-1 border-b border-zinc-850">$1</h3>')
+        .replace(/# (.*)/g, '<h2 class="text-base font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-violet-400 to-indigo-300 mt-8 mb-4">$1</h2>')
+        .replace(/\*\*(.*?)\*\"/g, '<strong class="text-zinc-100 font-semibold">$1</strong>')
+        .replace(/\*(.*?)\*/g, '<em class="text-zinc-300">$1</em>')
+        .replace(/- (.*)/g, '<li class="ml-4 list-disc text-zinc-300 my-1.5 font-normal">$1</li>');
+    }
+
+    // Direct fetch processing using local storage key parameter
+    async function callGemini(payload, schema = null) {
+      let apiKey = localStorage.getItem('baseline_gemini_api_key') || "";
+      if (!apiKey) {
+        throw new Error("NO_API_KEY");
+      }
+
+      const baseUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+
+      if (schema) {
+        payload.generationConfig = {
+          responseMimeType: "application/json",
+          responseSchema: schema
+        };
+      }
+
+      let delay = 1000;
+      const maxRetries = 5;
+
+      for (let attempt = 0; attempt < maxRetries; attempt++) {
+        try {
+          const response = await fetch(baseUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+
+          if (response.ok) {
+            const result = await response.json();
+            return result.candidates?.[0]?.content?.parts?.[0]?.text || null;
+          } else {
+            throw new Error(`Status Code: ${response.status}`);
+          }
+        } catch (error) {
+          if (attempt === maxRetries - 1) {
+            throw error;
+          }
+          await new Promise(resolve => setTimeout(resolve, delay));
+          delay *= 2;
+        }
+      }
+      return null;
+    }
+
+    // SUGGEST TOOLS INTEGRATION
+    async function suggestMatchingTools() {
+      const btn = document.getElementById('btn-suggest-tools');
+      const recBox = document.getElementById('smart-tool-recommendations');
+      const recList = document.getElementById('smart-tool-list');
+
+      btn.disabled = true;
+      btn.innerHTML = '<span>✨ Analyzing profile...</span>';
+      recBox.classList.remove('hidden');
+      recList.innerHTML = '<span class="text-xs text-zinc-500 italic animate-pulse">Consulting strategist for tool pairings...</span>';
+
+      const systemPrompt = "You are an expert tech stack engineer who suggests modern productivity/automation tools based on user styles.";
+      const userPrompt = `
+Based on this profile setup, suggest exactly 5 specific, highly relevant technology tools that this user should consider adding to their stack:
+- Comfort Level: ${comfortLevel}
+- Interface Preferences: ${interfacePrefs.join(', ') || 'Any'}
+- Ideal Outcome: "${document.getElementById('outcome-input').value}"
+
+Only suggest tools NOT already in this list: [${techStack.join(', ')}].
+`;
+
+      const schema = {
+        type: "OBJECT",
+        properties: {
+          recommendations: {
+            type: "ARRAY",
+            items: {
+              type: "OBJECT",
+              properties: {
+                name: { type: "STRING" },
+                reason: { type: "STRING" }
+              },
+              required: ["name", "reason"]
+            }
+          }
+        },
+        required: ["recommendations"]
+      };
+
+      const payload = {
+        contents: [{ parts: [{ text: userPrompt }] }],
+        systemInstruction: { parts: [{ text: systemPrompt }] }
+      };
+
+      try {
+        const rawJsonText = await callGemini(payload, schema);
+        if (rawJsonText) {
+          const parsed = JSON.parse(rawJsonText);
+          const recs = parsed.recommendations || [];
+          
+          if (recs.length === 0) {
+            recList.innerHTML = '<span class="text-xs text-zinc-500 italic">No new tools matching this unique criteria found.</span>';
+          } else {
+            recList.innerHTML = recs.map(tool => `
+              <button onclick="addSuggestedTool('${tool.name.replace(/'/g, "\\'")}')" class="group text-left p-2.5 bg-zinc-900/80 hover:bg-violet-950/20 border border-zinc-800 hover:border-violet-500/40 rounded-xl transition flex flex-col gap-1 w-full md:w-[48%]">
+                <span class="text-xs font-bold text-zinc-200 group-hover:text-violet-300 flex items-center justify-between w-full">
+                  <span>✨ ${tool.name}</span>
+                  <span class="text-[10px] text-zinc-500 font-semibold group-hover:text-violet-400 bg-zinc-950 px-2 py-0.5 rounded-md border border-zinc-850">+ Add</span>
+                </span>
+                <span class="text-[10px] text-zinc-400 leading-normal font-normal">${tool.reason}</span>
+              </button>
+            `).join('');
+          }
+        }
+      } catch (err) {
+        if (err.message === "NO_API_KEY") {
+          toggleFallbackModal(true, 'suggest_tools');
+        } else {
+          recList.innerHTML = '<span class="text-xs text-rose-400">Unable to retrieve automated recommendations. Please try again.</span>';
+        }
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<span>✨ Suggest Matching Tools</span>';
+      }
+    }
+
+    function addSuggestedTool(name) {
+      if (!techStack.includes(name)) {
+        techStack.push(name);
+        renderTechTags();
+        showToast(`Added ${name} to your stack!`);
+        const key = localStorage.getItem('baseline_gemini_api_key');
+        if (key) {
+          suggestMatchingTools();
+        } else {
+          document.getElementById('smart-tool-recommendations').classList.add('hidden');
+        }
+      }
+    }
+
+    // POLISH OUTCOME INTEGRATION
+    async function upgradeOutcome() {
+      const btn = document.getElementById('btn-upgrade-outcome');
+      const textarea = document.getElementById('outcome-input');
+      const currentVal = textarea.value.trim();
+
+      if (!currentVal) {
+        showToast("Please type or dictate a brief outcome note first!", "bg-rose-950 border-rose-500/40 text-rose-300");
+        return;
+      }
+
+      btn.disabled = true;
+      btn.innerHTML = '<span>✨ Refining outcome...</span>';
+
+      const systemPrompt = "You are a professional workflow designer. You take vague, simple, or rough outcome descriptions and polish them into clear, actionable, high-impact business and technical outcome statements under 30 words. Keep it highly realistic and ambitious.";
+      const userPrompt = `
+Enhance this raw outcome description:
+"${currentVal}"
+`;
+
+      const payload = {
+        contents: [{ parts: [{ text: userPrompt }] }],
+        systemInstruction: { parts: [{ text: systemPrompt }] }
+      };
+
+      try {
+        const upgradedText = await callGemini(payload);
+        if (upgradedText) {
+          textarea.value = upgradedText.trim().replace(/"/g, '');
+          idealOutcome = textarea.value;
+          showToast("Outcome enhanced and refined!", "bg-emerald-950 border-emerald-500/40 text-emerald-200");
+        }
+      } catch (err) {
+        if (err.message === "NO_API_KEY") {
+          toggleFallbackModal(true, 'upgrade_outcome');
+        } else {
+          showToast("Unable to refine outcome statement. Please retry.", "bg-rose-950 border-rose-500/40 text-rose-300");
+        }
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<span>✨ Upgrade Outcome</span>';
+      }
+    }
+
+    // CONVERSATIONAL CHAT ADAPTATION INTEGRATION
+    async function sendFollowUpChat() {
+      const input = document.getElementById('chat-input');
+      const chatBox = document.getElementById('chat-messages');
+      const userMsg = input.value.trim();
+
+      if (!userMsg) return;
+
+      if (chatHistory.length === 0) {
+        chatBox.innerHTML = '';
+      }
+
+      chatBox.innerHTML += `
+        <div class="p-2 bg-zinc-900 border border-zinc-800 rounded-lg space-y-0.5">
+          <p class="text-[9px] uppercase font-bold text-zinc-500 font-sans">You</p>
+          <p class="text-zinc-200 font-normal">${userMsg}</p>
+        </div>
+      `;
+      chatBox.scrollTop = chatBox.scrollHeight;
+      input.value = '';
+
+      const thinkingId = "thinking-" + Date.now();
+      chatBox.innerHTML += `
+        <div id="${thinkingId}" class="p-2 bg-violet-950/10 border border-violet-900/20 rounded-lg space-y-0.5 animate-pulse">
+          <p class="text-[9px] uppercase font-bold text-violet-400">Strategist Consultant</p>
+          <p class="text-zinc-400 italic font-normal">Adapting blueprint timeline with new constraints...</p>
+        </div>
+      `;
+      chatBox.scrollTop = chatBox.scrollHeight;
+
+      const systemPrompt = "You are an elite productivity strategist. The user has an existing blueprint playbook which you need to modify based on their new questions or constraints. Respond concisely in under 80 words. Be realistic and extremely precise.";
+      const promptText = `
+ORIGINAL BLUEPRINT CONTEXT:
+${activeBlueprint}
+
+USER CLARIFICATION/ADAPTATION:
+"${userMsg}"
+
+Adapt the strategy to address this specific feedback while staying aligned with their setup profile.
+`;
+
+      const payload = {
+        contents: [{ parts: [{ text: promptText }] }],
+        systemInstruction: { parts: [{ text: systemPrompt }] }
+      };
+
+      try {
+        const aiResponse = await callGemini(payload);
+        document.getElementById(thinkingId).remove();
+
+        if (aiResponse) {
+          chatHistory.push({ user: userMsg, ai: aiResponse });
+          chatBox.innerHTML += `
+            <div class="p-2 bg-violet-950/20 border border-violet-900/40 rounded-lg space-y-0.5">
+              <p class="text-[9px] uppercase font-bold text-violet-400">Strategist Consultant</p>
+              <p class="text-zinc-300 leading-relaxed font-normal">${aiResponse}</p>
+            </div>
+          `;
+          chatBox.scrollTop = chatBox.scrollHeight;
+          showToast("Playbook blueprint adapted successfully!");
+        }
+      } catch (err) {
+        document.getElementById(thinkingId).remove();
+        chatBox.innerHTML += `
+          <div class="p-2 bg-rose-950/20 border border-rose-900/40 rounded-lg space-y-0.5 text-rose-300">
+            <p class="text-[9px] uppercase font-bold text-rose-400">System Error</p>
+            <p class="font-normal">Could not reach the strategist node. Try re-sending your adaptation feedback.</p>
+          </div>
+        `;
+        chatBox.scrollTop = chatBox.scrollHeight;
+      }
+    }
+
+    document.getElementById('chat-input').addEventListener('keypress', function (e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        sendFollowUpChat();
+      }
+    });
+
+    // GENERAL PLAYBOOK SYNTHESIS
+    async function generatePlaybook() {
+      switchTab('blueprint');
+      const content = document.getElementById('blueprint-content');
+      const chatSection = document.getElementById('blueprint-chat-section');
+      
+      chatSection.classList.add('hidden');
+      chatHistory = [];
+
+      content.innerHTML = `
+        <div class="py-12 flex flex-col items-center justify-center space-y-4">
+          <div class="relative flex items-center justify-center w-16 h-16">
+            <div class="absolute w-12 h-12 border-4 border-t-violet-500 border-r-transparent border-b-transparent border-l-transparent rounded-full animate-spin"></div>
+            <div class="absolute w-16 h-16 border-2 border-dashed border-indigo-500/40 rounded-full animate-pulse"></div>
+            <svg class="w-6 h-6 text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+          </div>
+          <div class="text-center space-y-1.5 max-w-xs">
+            <h4 class="text-sm font-semibold text-zinc-200 animate-pulse">Analyzing System Parameters...</h4>
+            <p class="text-xs text-zinc-500 leading-relaxed font-normal">Cross-referencing technology comfort metrics with output pacing goals.</p>
+          </div>
+        </div>
+      `;
+
+      const userPrompt = `
+Analyze the following Baseline Intake Form responses and generate a stunningly creative, highly personalized, and realistic "Tech Strategy & Optimization Blueprint".
+
+---
+### RESPONSES:
+- **Current Tech Stack**: ${techStack.join(', ') || 'No tech tools provided yet.'}
+- **Tech Comfort Level**: ${comfortLevel}
+- **Interface Preferences**: ${interfacePrefs.join(', ') || 'No preference indicated'}
+- **Learning Patience**: ${learningPatience}
+- **Ideal Outcome**: "${document.getElementById('outcome-input').value}"
+- **Time Horizon**: Accomplish this within ${timeHorizon}
+---
+
+Please format your response into clean, styled sections:
+1.  **🚀 EXECUTIVE SUMMARY PROFILE**: Analyze what their profile says about their technology habits, strengths, and primary friction points. Give them a cool archetype name!
+2.  **🔧 CURRENT STACK OPTIMIZATION**: Take their exact current stack [${techStack.join(', ')}] and suggest 1-2 powerful integrations or tricks that fit their comfort level to make their current tools work 10x better together.
+3.  **🌟 FUTURE-PROOF TOOL RECOMMENDATIONS**: Suggest 2-3 specific innovative or AI-driven tools that match their exact Interface Preferences and Comfort Levels to deliver their Ideal Outcome.
+4.  **📅 STEP-BY-STEP ACTION TIMELINE (${timeHorizon})**: A day-by-day/phase-by-phase playbook that matches their Learning Patience to minimize friction.
+5.  **⚡ QUICK-WIN EXPERIMENTS**: Provide 2-3 immediate, high-impact tasks they can do in under 15 minutes to feel progress today.
+
+Make the tone engaging, professional, inspiring, and highly specific. Use emojis and markdown for outstanding presentation.
+`;
+
+      const systemPrompt = "You are an elite productivity strategist and human-centric systems designer. Your goal is to guide clients on adopting advanced productivity tools, automation frameworks, and AI workflows seamlessly according to their mental models, time constraints, and ultimate ambitions.";
+
+      const payload = {
+        contents: [{ parts: [{ text: userPrompt }] }],
+        systemInstruction: { parts: [{ text: systemPrompt }] }
+      };
+
+      try {
+        const responseText = await callGemini(payload);
+        if (responseText) {
+          activeBlueprint = responseText;
+          content.innerHTML = `
+            <div class="py-2 text-left space-y-4 max-h-[600px] overflow-y-auto pr-1">
+              <div class="text-xs text-zinc-300 leading-relaxed space-y-3">
+                ${markdownToHTML(responseText)}
+              </div>
+            </div>
+          `;
+          document.getElementById('blueprint-footer').classList.remove('hidden');
+          chatSection.classList.remove('hidden');
+          showToast('Personalized Strategy Playbook Generated!', 'bg-emerald-950/90 border-emerald-500/30 text-emerald-200');
+        }
+      } catch (error) {
+        if (error.message === "NO_API_KEY") {
+          toggleFallbackModal(true, 'playbook');
+          content.innerHTML = `
+            <div class="h-12 w-12 rounded-xl bg-zinc-950 border border-zinc-850 flex items-center justify-center text-zinc-500 mx-auto mb-4">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+            </div>
+            <h4 class="text-sm font-semibold text-zinc-300">Prompt Generated Successfully</h4>
+            <p class="text-xs text-zinc-500 max-w-xs mx-auto leading-relaxed font-normal">
+              Copy the structured prompt from the popup to run the strategist on any external model for free, then paste the results back here!
+            </p>
+          `;
+        } else {
+          content.innerHTML = `
+            <div class="py-12 text-center text-rose-400">
+              <p class="text-xs">Persistent connection errors occurred while generating your strategy. Please verify your connection status and run again.</p>
+            </div>
+          `;
+        }
+      }
+    }
+
+    function copyStrategyText() {
+      if (!activeBlueprint) return;
+      const el = document.createElement('textarea');
+      el.value = activeBlueprint;
+      document.body.appendChild(el);
+      el.select();
+      document.execCommand('copy');
+      document.body.removeChild(el);
+      showToast('Full Markdown strategy copied to clipboard!');
+    }
+
+    function getPayload() {
+      return {
+        timestamp: new Date().toISOString(),
+        techStack,
+        comfortLevel,
+        interfacePrefs,
+        learningPatience,
+        idealOutcome: document.getElementById('outcome-input').value,
+        timeHorizon
+      };
+    }
+  </script>
+</body>
+</html>
